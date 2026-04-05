@@ -1,20 +1,72 @@
-import React, { useState } from 'react';
-import { creditsData } from '../data/creditsData';
+import React, { useState, useEffect } from 'react';
+import { db } from '../firebase/config'; 
+import { collection, getDocs } from 'firebase/firestore';
 import CreditCard from '../components/CreditCard';
 
 const Inicio = () => {
+    //Datos de Firebase, Buscador, Estado de Carga y Errores
+    const [credits, setCredits] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [loading, setLoading] = useState(true); //Loading state
+    const [error, setError] = useState(null); // Manejo de errores
 
-    // logica para barra de busqueda de banner inicio
-    const filteredCredits = creditsData.filter((credito) => {
-        const nombreLimpio = credito.name.toLowerCase();
+    //useEffect para ejecutar la lectura (READ) al montar el componente
+    useEffect(() => {
+        const fetchCredits = async () => {
+            try {
+                setLoading(true);
+                const creditsCollection = collection(db, "credits");
+                
+                const querySnapshot = await getDocs(creditsCollection);
+                
+                const docs = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                setCredits(docs);
+            } catch (err) {
+                console.error("Error al leer Firestore:", err);
+                setError("No se pudieron cargar los productos financieros. Revisa tu conexión a internet.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCredits();
+    }, []);
+
+    //Lógica de filtrado para el buscador
+    const filteredCredits = credits.filter((credito) => {
+        const nombreLimpio = (credito.name || '').toLowerCase();
         const busquedaLimpia = searchTerm.toLowerCase().trim();
         return nombreLimpio.includes(busquedaLimpia);
     });
 
+    //Mientras carga
+    if (loading) return (
+        <div className="text-center py-5 mt-5">
+            <div className="spinner-border text-orange" role="status" style={{ width: '3rem', height: '3rem' }}></div>
+            <p className="mt-3 text-muted fw-bold text-uppercase">Conectando con la base de datos...</p>
+        </div>
+    );
+
+    //Renderizado Condicional
+    if (error) return (
+        <div className="container py-5 text-center mt-5">
+            <div className="alert alert-danger shadow-sm py-4">
+                <i className="bi bi-wifi-off fs-1 d-block mb-3"></i>
+                <h4 className="fw-bold">{error}</h4>
+                <button className="btn btn-outline-danger mt-3" onClick={() => window.location.reload()}>
+                    Reintentar conexión
+                </button>
+            </div>
+        </div>
+    );
+
     return (
         <>
-            {/* Banner*/}
+            {/* Banner con Buscador */}
             <section className="bg-orange text-white py-6 px-4">
                 <div className="container">
                     <div className="row align-items-center">
@@ -27,7 +79,6 @@ const Inicio = () => {
                                 soluciones humanas para ofrecerte préstamos rápidos.
                             </p>
 
-                            {/* Buscador del banner*/}
                             <div className="input-group w-75 shadow-sm">
                                 <span className="input-group-text bg-white border-0">
                                     <i className="bi bi-search text-orange"></i>
@@ -53,7 +104,7 @@ const Inicio = () => {
                 </div>
             </section>
 
-            {/* Listados de productos crediticios*/}
+            {/* Listado Dinámico desde Firebase */}
             <main className="container py-5">
                 <h2 className="fw-bold text-dark-blue mb-5 text-uppercase">Nuestros Productos</h2>
                 <div className="row">
@@ -64,7 +115,7 @@ const Inicio = () => {
                     ) : (
                         <div className="col-12 text-center py-5">
                             <i className="bi bi-exclamation-circle fs-1 text-muted"></i>
-                            <h3 className="text-muted mt-3">No hay créditos disponibles con ese nombre.</h3>
+                            <h3 className="text-muted mt-3">No encontramos créditos con ese nombre.</h3>
                         </div>
                     )}
                 </div>

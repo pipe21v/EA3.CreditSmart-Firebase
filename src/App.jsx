@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Inicio from './pages/Inicio';
 import Simulator from './pages/Simulator';
 import Solicitar from './pages/Solicitar';
+import Admin from './pages/Admin';
 import './App.css';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
               <Link to="/" className="text-white text-decoration-none me-3 fw-bold">INICIO</Link>
               <Link to="/simulator" className="text-white text-decoration-none me-3 fw-bold">SIMULADOR</Link>
               <Link to="/solicitar" className="text-white text-decoration-none fw-bold">SOLICITAR</Link>
+              <Link to="/admin" className="text-white text-decoration-none fw-bold">  ADMIN</Link>
             </div>
           </div>
         </nav>
@@ -35,6 +37,7 @@ function App() {
             <Route path="/" element={<Inicio />} />
             <Route path="/simulator" element={<Simulator />} />
             <Route path="/solicitar" element={<Solicitar />} />
+            <Route path="/admin" element={<Admin />} />
           </Routes>
         </main>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-// Importamos la data para que el menú desplegable tenga los nombres reales
+import { db } from '../firebase/config';
+import { collection, addDoc } from 'firebase/firestore';
 import creditsData from '../data/creditsData'; 
 
 const Solicitar = () => {
@@ -17,9 +18,9 @@ const Solicitar = () => {
     ingresos: ''
   });
 
-  const [solicitudes, setSolicitudes] = useState([]);
   const [cuotaEstimada, setCuotaEstimada] = useState(0);
   const [enviado, setEnviado] = useState(false);
+  const [errorEnvio, setErrorEnvio] = useState(false);
 
   // Lógica de cálculo en tiempo real
   useEffect(() => {
@@ -38,11 +39,30 @@ const Solicitar = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  //FUNCIÓN DE ENVÍO A FIREBASE 
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSolicitudes([...solicitudes, { ...formData, id: Date.now(), cuota: cuotaEstimada }]);
-    setEnviado(true);
-    setTimeout(() => setEnviado(false), 5000);
+    setErrorEnvio(false);
+
+    try {
+      // Referencia a la colección en la nube
+      const solicitudesRef = collection(db, "solicitudes");
+
+      await addDoc(solicitudesRef, {
+        ...formData,
+        cuotaEstimada: Math.round(cuotaEstimada),
+        fechaRegistro: new Date().toLocaleString(), 
+        estado: 'Pendiente'
+      });
+
+      setEnviado(true);
+      handleLimpiar(); 
+      setTimeout(() => setEnviado(false), 5000);
+
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      setErrorEnvio(true);
+    }
   };
 
   const handleLimpiar = () => {
@@ -51,6 +71,7 @@ const Solicitar = () => {
       tipoCredito: '', monto: '', plazo: '12', destino: '', 
       empresa: '', cargo: '', ingresos: ''
     });
+    setCuotaEstimada(0);
   };
 
   return (
@@ -60,20 +81,17 @@ const Solicitar = () => {
           <h1 className="fw-bold text-dark-blue mb-4 text-uppercase">Formulario de Solicitud</h1>
           
           <form onSubmit={handleSubmit}>
-            {/* datos personales */}
+            {/* Sección de Datos Personales */}
             <div className="bg-light p-4 rounded mb-4 shadow-sm border-start border-orange border-4">
               <h5 className="fw-bold text-dark-blue mb-3">Datos Personales</h5>
-              
               <div className="mb-3">
                 <label className="text-orange small fw-bold">Nombre Completo</label>
                 <input type="text" name="nombre" className="form-control" value={formData.nombre} onChange={handleChange} required />
               </div>
-
               <div className="mb-3">
                 <label className="text-orange small fw-bold">Número de Cédula</label>
                 <input type="number" name="cedula" className="form-control" value={formData.cedula} onChange={handleChange} required />
               </div>
-
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="text-orange small fw-bold">Teléfono</label>
@@ -86,15 +104,13 @@ const Solicitar = () => {
               </div>
             </div>
 
-            {/* datos del credito */}
+            {/* Sección de Datos del Crédito */}
             <div className="bg-light p-4 rounded mb-4 shadow-sm border-start border-orange border-4">
               <h5 className="fw-bold text-dark-blue mb-3">Datos Del Crédito</h5>
-              
               <div className="mb-3">
                 <label className="text-orange small fw-bold">Tipo De Crédito</label>
                 <select name="tipoCredito" className="form-select" value={formData.tipoCredito} onChange={handleChange} required>
                   <option value="">Seleccione un crédito...</option>
-                  {/* Mapeado de los creditos */}
                   {creditsData.map((credito) => (
                     <option key={credito.id} value={credito.name}>
                       {credito.name}
@@ -102,7 +118,6 @@ const Solicitar = () => {
                   ))}
                 </select>
               </div>
-
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="text-orange small fw-bold">Monto Solicitado</label>
@@ -119,22 +134,19 @@ const Solicitar = () => {
                   </select>
                 </div>
               </div>
-
               <div className="mb-3">
                 <label className="text-orange small fw-bold">Destino Del Crédito</label>
                 <input type="text" name="destino" className="form-control" placeholder="Ej: Compra de vivienda, Viaje, etc." value={formData.destino} onChange={handleChange} required />
               </div>
             </div>
 
-            {/* datos laborales */}
+            {/* Sección de Datos Laborales */}
             <div className="bg-light p-4 rounded mb-4 shadow-sm border-start border-orange border-4">
               <h5 className="fw-bold text-dark-blue mb-3">Datos Laborales</h5>
-              
               <div className="mb-3">
                 <label className="text-orange small fw-bold">Empresa Donde Trabaja</label>
                 <input type="text" name="empresa" className="form-control" value={formData.empresa} onChange={handleChange} required />
               </div>
-
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="text-orange small fw-bold">Cargo</label>
@@ -148,13 +160,24 @@ const Solicitar = () => {
             </div>
 
             <div className="d-grid gap-3">
-              <button type="submit" className="btn btn-orange text-white fw-bold py-3 shadow-sm text-uppercase">Enviar Solicitud</button>
-              <button type="button" className="btn btn-outline-secondary fw-bold py-2 text-uppercase" onClick={handleLimpiar}>Limpiar Formulario</button>
+              <button type="submit" className="btn btn-orange text-white fw-bold py-3 shadow-sm text-uppercase">
+                Enviar Solicitud
+              </button>
+              <button type="button" className="btn btn-outline-secondary fw-bold py-2 text-uppercase" onClick={handleLimpiar}>
+                Limpiar Formulario
+              </button>
             </div>
+
+            {/* Mensaje de Error*/}
+            {errorEnvio && (
+              <div className="alert alert-danger mt-3">
+                No se pudo conectar con el servidor. Intenta más tarde.
+              </div>
+            )}
           </form>
         </div>
 
-        {/* lado derecho pagina */}
+        {/* Lado derecho: Resumen */}
         <div className="col-md-5">
           <div className="sticky-top" style={{ top: '100px' }}>
             <div className="text-center mb-5">
@@ -184,7 +207,7 @@ const Solicitar = () => {
             {enviado && (
               <div className="alert alert-success mt-4 border-0 shadow-sm animate__animated animate__bounceIn">
                 <i className="bi bi-check-circle-fill me-2"></i>
-                ¡Solicitud registrada correctamente!
+                ¡Solicitud enviada correctamente!
               </div>
             )}
           </div>
